@@ -7,8 +7,10 @@ app.use(cors());
 app.use(express.json());
 
 const paketeRoute = require('./routes/pakete');
+const authRoutes = require('./routes/auth')
 
 app.use('/api/pakete', paketeRoute);
+app.use('/api/auth', authRoutes);
 
 // Beispielroute
 app.get('/api/ping', (req, res) => {

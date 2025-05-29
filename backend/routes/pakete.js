@@ -4,14 +4,12 @@ const db = require('../lib/db')
 
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT value, data FROM cfg WHERE value LIKE 'paket_%'")
-    
-    const pakete = rows.map(row => {
-      return {
-        id: row.value,
-        ...JSON.parse(row.data)
-      }
-    })
+    const rows = await db.query("SELECT value, data FROM cfg WHERE value LIKE 'paket_%'")
+
+    const pakete = rows.map(row => ({
+      id: row.value,
+      ...JSON.parse(row.data)
+    }))
 
     res.json(pakete)
   } catch (err) {
