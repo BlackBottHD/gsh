@@ -1,7 +1,26 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 export function useAuth(): boolean {
-  if (typeof window === 'undefined') return false
-  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-  return !!token
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    if (!token) {
+      setIsAuthenticated(false)
+      return
+    }
+
+    fetch('http://localhost:3001/api/auth/userinfo', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.ok ? res.json() : Promise.reject())
+      .then(data => {
+        setIsAuthenticated(!!data?.user)
+      })
+      .catch(() => setIsAuthenticated(false))
+  }, [])
+
+  return isAuthenticated
 }

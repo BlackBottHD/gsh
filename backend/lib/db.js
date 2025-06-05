@@ -1,4 +1,4 @@
-const mysql = require('mysql2/promise');
+const mysql = require('mysql2/promise')
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
@@ -8,11 +8,12 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
-});
+})
 
 module.exports = {
   query: async (sql, params) => {
-    const [rows] = await pool.execute(sql, params);
-    return rows; // <<< Nur rows zurückgeben
+    const [rows] = await pool.execute(sql, params)
+    return rows
   },
-};
+  pool // ⬅️ wichtig für getConnection()
+}

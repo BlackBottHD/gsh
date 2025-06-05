@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 
-export default function LoginCheckPopup() {
+export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: { forceShow?: boolean; forceRedirectTo?: string }) {
   const [showPopup, setShowPopup] = useState(false)
   const [tab, setTab] = useState<'login' | 'register'>('login')
 
-  const [identifier, setIdentifier] = useState('') // Email oder Username
+  const [identifier, setIdentifier] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
@@ -14,7 +14,20 @@ export default function LoginCheckPopup() {
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-    if (!token) setShowPopup(true)
+    if (!token) return setShowPopup(true)
+
+    // Token validieren
+    fetch('http://localhost:3001/api/auth/userinfo', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      })
+      .then(data => {
+        if (!data?.user) setShowPopup(true)
+      })
+      .catch(() => setShowPopup(true))
   }, [])
 
   const handleSubmit = async () => {
@@ -23,32 +36,37 @@ export default function LoginCheckPopup() {
       setError('Bitte fülle alle Felder korrekt aus.')
       return
     }
-
+  
     try {
       const body = tab === 'login'
         ? { identifier, password }
         : { email: identifier, username, password }
-
+  
       const res = await fetch(`http://localhost:3001/api/auth/${tab}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-
-
+  
       const data = await res.json()
       if (!res.ok || !data.token) {
         setError(data.message || 'Fehler beim Authentifizieren.')
         return
       }
-
+  
       localStorage.setItem('auth_token', data.token)
       setShowPopup(false)
-      window.location.reload()
+  
+      if (forceRedirectTo) {
+        window.location.href = forceRedirectTo
+      } else {
+        window.location.reload()
+      }
     } catch (err) {
       setError('Serverfehler. Bitte später erneut versuchen.')
     }
   }
+  
 
   if (!showPopup) return null
 

@@ -57,22 +57,49 @@ export default function ServerErstellenPage() {
       })
   }, [paketId])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedGame || !serverName || !paket) {
       alert('Bitte Spiel und Namen auswählen.')
       return
     }
-
+  
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    if (!token) {
+      alert('Nicht eingeloggt. Bitte neu anmelden.')
+      return
+    }
+  
     const payload = {
       paketId: paket.id,
       gameId: selectedGame,
       serverName,
     }
-
-    console.log('[HGDEVS] Neuer Server wird erstellt:', payload)
-
-    // TODO: POST an Backend senden
+  
+    try {
+      const res = await fetch('http://localhost:3001/api/server', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+  
+      const data = await res.json()
+  
+      if (!res.ok) {
+        throw new Error(data.message || 'Fehler beim Erstellen des Servers.')
+      }
+  
+      console.log('[HGDEVS] Server erfolgreich erstellt:', data)
+      alert('Server wurde erstellt.')
+      // Optional: Redirect oder zur Verwaltungsseite
+    } catch (err) {
+      console.error('[HGDEVS] Fehler beim Erstellen:', err)
+      alert('Fehler beim Erstellen des Servers.')
+    }
   }
+  
 
   if (!paketId) return <div className="p-8 text-white">Lade Paket-ID…</div>
   if (!paket) return <div className="p-8 text-white">Lade Paketdaten…</div>
