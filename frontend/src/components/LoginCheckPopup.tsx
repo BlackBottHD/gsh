@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+
 
 export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: { forceShow?: boolean; forceRedirectTo?: string }) {
+  const router = useRouter()
   const [showPopup, setShowPopup] = useState(false)
   const [tab, setTab] = useState<'login' | 'register'>('login')
 
@@ -12,23 +15,28 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
   const [repeat, setRepeat] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-    if (!token) return setShowPopup(true)
+useEffect(() => {
+  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+  if (!token) return setShowPopup(true)
 
-    // Token validieren
-    fetch('http://localhost:3001/api/auth/userinfo', {
-      headers: { Authorization: `Bearer ${token}` },
+  fetch('http://localhost:3001/api/auth/userinfo', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(res => {
+      if (!res.ok) throw new Error()
+      return res.json()
     })
-      .then(res => {
-        if (!res.ok) throw new Error()
-        return res.json()
-      })
-      .then(data => {
-        if (!data?.user) setShowPopup(true)
-      })
-      .catch(() => setShowPopup(true))
-  }, [])
+    .then(data => {
+
+      if (forceShow || !data?.id) {
+        setShowPopup(true)
+      } else {
+        setShowPopup(false)
+      }
+    })
+    .catch(() => setShowPopup(true))
+}, [forceShow])
+
 
   const handleSubmit = async () => {
     setError('')
@@ -36,37 +44,37 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
       setError('Bitte fülle alle Felder korrekt aus.')
       return
     }
-  
+
     try {
       const body = tab === 'login'
         ? { identifier, password }
         : { email: identifier, username, password }
-  
+
       const res = await fetch(`http://localhost:3001/api/auth/${tab}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-  
+
       const data = await res.json()
       if (!res.ok || !data.token) {
         setError(data.message || 'Fehler beim Authentifizieren.')
         return
       }
-  
+
       localStorage.setItem('auth_token', data.token)
       setShowPopup(false)
-  
+
       if (forceRedirectTo) {
-        window.location.href = forceRedirectTo
+        router.push(forceRedirectTo) // ← Next.js Routing verwenden
       } else {
-        window.location.reload()
+        router.refresh() // besser als reload
       }
     } catch (err) {
       setError('Serverfehler. Bitte später erneut versuchen.')
     }
   }
-  
+
 
   if (!showPopup) return null
 

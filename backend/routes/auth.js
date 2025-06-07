@@ -3,6 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const db = require('../lib/db');
 const jwt = require('jsonwebtoken');
+const { getUserPermissions } = require('../lib/requirePermission');
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changemeplease';
 
@@ -73,8 +75,20 @@ router.post('/login', async (req, res) => {
     }
 
     const user = users[0];
-    const match = await bcrypt.compare(password, user.password_hash);
+    console.debug('[LOGIN] Benutzer: ', user);
 
+    // 🔒 Status prüfen
+    if (user.status === 'pending') {
+      return res.status(403).json({ message: 'Konto noch nicht freigeschaltet' });
+    }
+    if (user.status === 'inactive') {
+      return res.status(403).json({ message: 'Konto deaktiviert' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(403).json({ message: 'Konto gesperrt' });
+    }
+
+    const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
       return res.status(401).json({ message: 'Falsches Passwort' });
     }
@@ -98,6 +112,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
 // 📌 Middleware zum Token prüfen
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -115,19 +130,25 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+
 // 📌 Geschützte Route: Userinfo
 router.get('/userinfo', verifyToken, async (req, res) => {
   try {
-    const [user] = await db.query(
+    const users = await db.query(
       'SELECT id, username, email, lastseen FROM users WHERE id = ?',
       [req.user.id]
-    );
-    if (!user) return res.status(404).json({ message: 'Benutzer nicht gefunden' });
-    res.json({ user });
+    )
+    const user = users[0]
+    if (!user) return res.status(404).json({ message: 'Benutzer nicht gefunden' })
+
+    const permObj = await getUserPermissions(user.id)
+    const permissions = Object.keys(permObj)
+
+    res.json({ ...user, permissions })
   } catch (err) {
-    console.error('[USERINFO]', err);
-    res.status(500).json({ message: 'Interner Serverfehler' });
+    console.error('[USERINFO]', err)
+    res.status(500).json({ message: 'Interner Serverfehler' })
   }
-});
+})
 
 module.exports = router;

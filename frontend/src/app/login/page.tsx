@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
   const params = useSearchParams()
-  const redirect = params.get('redirect') || '/'
+const redirect = params.get('redirect') || '/dashboard'
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">

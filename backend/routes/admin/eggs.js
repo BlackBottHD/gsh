@@ -3,6 +3,7 @@ const router = express.Router()
 const db = require('../../lib/db')
 const jwt = require('jsonwebtoken')
 const axios = require('axios')
+const { requirePermission } = require('../../lib/requirePermission')
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization
@@ -73,69 +74,81 @@ const fetchPteroEggs = async () => {
 }
 
 // 📌 GET /api/admin/eggs
-router.get('/', async (req, res) => {
-  try {
-    const [rows] = await db.pool.query(`
-      SELECT e.id, e.game_id, e.variant_id, e.egg_id, gv.variant_name
-      FROM egg_map e
-      LEFT JOIN game_variants gv ON e.variant_id = gv.id
-      ORDER BY e.game_id ASC
-    `)
-    const eggs = await fetchPteroEggs()
-    res.json({ map: rows, eggs })
-  } catch (err) {
-    console.error('[EGG GET]', err?.response?.data || err.message || err)
-    res.status(500).json({ message: 'Fehler beim Abrufen der Eggs' })
+router.get('/',
+  requirePermission('admin.eggs.view'),
+  async (req, res) => {
+    try {
+      const [rows] = await db.pool.query(`
+        SELECT e.id, e.game_id, e.variant_id, e.egg_id, gv.variant_name
+        FROM egg_map e
+        LEFT JOIN game_variants gv ON e.variant_id = gv.id
+        ORDER BY e.game_id ASC
+      `)
+      const eggs = await fetchPteroEggs()
+      res.json({ map: rows, eggs })
+    } catch (err) {
+      console.error('[EGG GET]', err?.response?.data || err.message || err)
+      res.status(500).json({ message: 'Fehler beim Abrufen der Eggs' })
+    }
   }
-})
+)
 
 // 📌 POST /api/admin/eggs
-router.post('/', async (req, res) => {
-  const { game_id, variant_id, egg_id } = req.body
-  if (!game_id || !egg_id) {
-    return res.status(400).json({ message: 'game_id und egg_id erforderlich' })
-  }
+router.post('/',
+  requirePermission('admin.eggs.create'),
+  async (req, res) => {
+    const { game_id, variant_id, egg_id } = req.body
+    if (!game_id || !egg_id) {
+      return res.status(400).json({ message: 'game_id und egg_id erforderlich' })
+    }
 
-  try {
-    await db.pool.query(
-      'INSERT INTO egg_map (game_id, variant_id, egg_id, created_at) VALUES (?, ?, ?, NOW())',
-      [game_id, variant_id || null, egg_id]
-    )
-    res.status(201).json({ message: 'Zuordnung gespeichert' })
-  } catch (err) {
-    console.error('[EGG POST]', err)
-    res.status(500).json({ message: 'Fehler beim Speichern' })
+    try {
+      await db.pool.query(
+        'INSERT INTO egg_map (game_id, variant_id, egg_id, created_at) VALUES (?, ?, ?, NOW())',
+        [game_id, variant_id || null, egg_id]
+      )
+      res.status(201).json({ message: 'Zuordnung gespeichert' })
+    } catch (err) {
+      console.error('[EGG POST]', err)
+      res.status(500).json({ message: 'Fehler beim Speichern' })
+    }
   }
-})
+)
 
 // 📌 DELETE /api/admin/eggs/:id
-router.delete('/:id', async (req, res) => {
-  try {
-    await db.pool.query('DELETE FROM egg_map WHERE id = ?', [req.params.id])
-    res.json({ message: 'Zuordnung gelöscht' })
-  } catch (err) {
-    console.error('[EGG DELETE]', err)
-    res.status(500).json({ message: 'Fehler beim Löschen' })
+router.delete('/:id',
+  requirePermission('admin.eggs.delete'),
+  async (req, res) => {
+    try {
+      await db.pool.query('DELETE FROM egg_map WHERE id = ?', [req.params.id])
+      res.json({ message: 'Zuordnung gelöscht' })
+    } catch (err) {
+      console.error('[EGG DELETE]', err)
+      res.status(500).json({ message: 'Fehler beim Löschen' })
+    }
   }
-})
+)
 
 // 📌 PATCH /api/admin/eggs/:id
-router.patch('/:id', async (req, res) => {
-  const { egg_id } = req.body
-  if (!egg_id) {
-    return res.status(400).json({ message: 'egg_id fehlt' })
-  }
+router.patch('/:id',
+  requirePermission('admin.eggs.edit'),
+  async (req, res) => {
+    const { egg_id } = req.body
+    if (!egg_id) {
+      return res.status(400).json({ message: 'egg_id fehlt' })
+    }
 
-  try {
-    await db.pool.query(
-      'UPDATE egg_map SET egg_id = ? WHERE id = ?',
-      [egg_id, req.params.id]
-    )
-    res.json({ message: 'Zuordnung aktualisiert' })
-  } catch (err) {
-    console.error('[EGG PATCH]', err)
-    res.status(500).json({ message: 'Fehler beim Aktualisieren' })
+    try {
+      await db.pool.query(
+        'UPDATE egg_map SET egg_id = ? WHERE id = ?',
+        [egg_id, req.params.id]
+      )
+      res.json({ message: 'Zuordnung aktualisiert' })
+    } catch (err) {
+      console.error('[EGG PATCH]', err)
+      res.status(500).json({ message: 'Fehler beim Aktualisieren' })
+    }
   }
-})
+)
 
 module.exports = router
