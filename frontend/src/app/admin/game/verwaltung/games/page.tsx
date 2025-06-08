@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAuthRedirect } from '@/lib/useAuthRedirect'
+import { usePermissionGuard } from '@/lib/usePermissionGuard'
+import { usePermissions } from '@/lib/usePermissions'
 
 type Paket = { id: string; label?: string }
 type Variant = { id?: number; variant_name: string; version: string; excluded_pakete: string[] }
 type Game = { game_id: string; name: string; variants: Variant[]; pakete: string[] }
 
 export default function GamesAdminPage() {
-  useAuthRedirect()
+  usePermissionGuard('admin.games.view')
+  const { hasPermission } = usePermissions()
   const [games, setGames] = useState<Game[]>([])
   const [edit, setEdit] = useState<Game | null>(null)
   const [pakete, setPakete] = useState<Paket[]>([])
@@ -114,20 +116,30 @@ export default function GamesAdminPage() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto text-white">
-      <h1 className="text-2xl font-bold mb-6">Spiele verwalten</h1>
+      <div className="mb-4">
+        <a
+          href="/admin/game/dashboard"
+          className="inline-block bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded"
+        >
+          ← Zurück zur Übersicht
+        </a>
+      </div>
 
-      <button onClick={() =>
-        setEdit({ game_id: '', name: '', variants: [], pakete: [] })
-      } className="mb-6 bg-blue-600 px-4 py-2 rounded">
-        ➕ Neues Spiel
-      </button>
+      <h1 className="text-2xl font-bold mb-6">Spiele verwalten</h1>
+      {hasPermission('admin.games.create') && (
+        <button onClick={() =>
+          setEdit({ game_id: '', name: '', variants: [], pakete: [] })
+        } className="mb-6 bg-blue-600 px-4 py-2 rounded">
+          ➕ Neues Spiel
+        </button>
+      )}
 
       <table className="w-full text-sm mb-8">
         <thead>
           <tr className="bg-gray-700">
             <th className="p-2">ID</th>
             <th className="p-2">Name</th>
-            <th className="p-2"></th>
+            <th className="p-2">Aktionen</th>
           </tr>
         </thead>
         <tbody>
@@ -136,19 +148,22 @@ export default function GamesAdminPage() {
               <td className="p-2">{g.game_id}</td>
               <td className="p-2">{g.name}</td>
               <td className="p-2 text-right space-x-2">
-                <button onClick={() => setEdit({
-                  game_id: g.game_id,
-                  name: g.name,
-                  variants: g.variants.map(v => ({
-                    id: (v as any).id, // wichtig für späteren Bezug auf excluded_pakete
-                    variant_name: v.variant_name,
-                    version: v.version,
-                    excluded_pakete: [...v.excluded_pakete]
-                  })),
-                  pakete: [...g.pakete]
-                })} className="text-yellow-400">Bearbeiten</button>
-
-                <button onClick={() => del(g.game_id)} className="text-red-400">Löschen</button>
+                {hasPermission('admin.games.edit') && (
+                  <button onClick={() => setEdit({
+                    game_id: g.game_id,
+                    name: g.name,
+                    variants: g.variants.map(v => ({
+                      id: (v as any).id, // wichtig für späteren Bezug auf excluded_pakete
+                      variant_name: v.variant_name,
+                      version: v.version,
+                      excluded_pakete: [...v.excluded_pakete]
+                    })),
+                    pakete: [...g.pakete]
+                  })} className="text-yellow-400">Bearbeiten</button>
+                )}
+                {hasPermission('admin.games.delete') && (
+                  <button onClick={() => del(g.game_id)} className="text-red-400">Löschen</button>
+                )}
               </td>
             </tr>
           ))}

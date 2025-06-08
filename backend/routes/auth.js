@@ -4,6 +4,8 @@ const bcrypt = require('bcrypt');
 const db = require('../lib/db');
 const jwt = require('jsonwebtoken');
 const { getUserPermissions } = require('../lib/requirePermission');
+const sendSMS = require('../lib/sendSMS')
+const { canSendSMS, registerSMS  } = require('../lib/smsLimiter')
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changemeplease';
@@ -77,30 +79,18 @@ router.post('/login', async (req, res) => {
     const user = users[0];
     console.debug('[LOGIN] Benutzer: ', user);
 
-    // 🔒 Status prüfen
-    if (user.status === 'pending') {
-      return res.status(403).json({ message: 'Konto noch nicht freigeschaltet' });
-    }
-    if (user.status === 'inactive') {
-      return res.status(403).json({ message: 'Konto deaktiviert' });
-    }
-    if (user.status === 'suspended') {
-      return res.status(403).json({ message: 'Konto gesperrt' });
-    }
+    if (user.status === 'pending') return res.status(403).json({ message: 'Konto noch nicht freigeschaltet' });
+    if (user.status === 'inactive') return res.status(403).json({ message: 'Konto deaktiviert' });
+    if (user.status === 'suspended') return res.status(403).json({ message: 'Konto gesperrt' });
 
     const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      return res.status(401).json({ message: 'Falsches Passwort' });
-    }
+    if (!match) return res.status(401).json({ message: 'Falsches Passwort' });
 
     await db.query('UPDATE users SET lastseen = NOW() WHERE id = ?', [user.id]);
 
+    // 🔐 JWT erzeugen
     const token = jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      },
+      { id: user.id, username: user.username, email: user.email },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -111,6 +101,7 @@ router.post('/login', async (req, res) => {
     return res.status(500).json({ message: 'Interner Serverfehler' });
   }
 });
+
 
 
 // 📌 Middleware zum Token prüfen
@@ -148,6 +139,36 @@ router.get('/userinfo', verifyToken, async (req, res) => {
   } catch (err) {
     console.error('[USERINFO]', err)
     res.status(500).json({ message: 'Interner Serverfehler' })
+  }
+})
+
+router.post('/sms', async (req, res) => {
+  const { phone } = req.body
+
+  if (!phone || !/^\+?[1-9]\d{7,15}$/.test(phone)) {
+    return res.status(400).json({ message: 'Ungültige Telefonnummer' })
+  }
+
+  if (!canSendSMS(phone)) {
+    return res.status(429).json({ message: 'SMS Limit erreicht. Bitte später versuchen.' })
+  }
+
+  const token = Math.floor(100000 + Math.random() * 900000).toString()
+  const expire = new Date(Date.now() + 15 * 60 * 1000) // 15 Min gültig
+
+  try {
+    await sendSMS(phone, `Ihr HGDEVS Bestätigungscode: ${token}`)
+
+    await db.query(`
+      UPDATE users SET sms_token = ?, sms_token_expire = ?
+      WHERE email = ? OR username = ?`,
+      [token, expire, phone, phone]
+    )
+
+    res.json({ message: 'Verifizierungscode gesendet.' })
+  } catch (err) {
+    console.error('[SMS]', err.message)
+    res.status(500).json({ message: 'Fehler beim Senden der SMS' })
   }
 })
 

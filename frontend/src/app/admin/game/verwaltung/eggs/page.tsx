@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePermissionGuard } from '@/lib/usePermissionGuard'
+import { usePermissions } from '@/lib/usePermissions'
 
 type Mapping = {
   id: number
@@ -29,6 +31,8 @@ type Game = {
 }
 
 export default function EggMappingPage() {
+  usePermissionGuard('admin.eggs.view')
+  const { hasPermission } = usePermissions()
   const [mappings, setMappings] = useState<Mapping[]>([])
   const [eggs, setEggs] = useState<Egg[]>([])
   const [gameOptions, setGameOptions] = useState<{ label: string, value: string }[]>([])
@@ -125,9 +129,19 @@ export default function EggMappingPage() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto text-white">
+      <div className="mb-4">
+        <a
+          href="/admin/game/dashboard"
+          className="inline-block bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded"
+        >
+          ← Zurück zur Übersicht
+        </a>
+      </div>
+
       <h1 className="text-2xl font-bold mb-6">Egg-Zuordnung</h1>
 
-      <div className="flex gap-4 mb-6">
+
+      {hasPermission('admin.eggs.create') && (<div className="flex gap-4 mb-6">
         <select
           value={gameSelection}
           onChange={e => setGameSelection(e.target.value)}
@@ -158,7 +172,7 @@ export default function EggMappingPage() {
         >
           Speichern
         </button>
-      </div>
+      </div>)}
 
       <table className="w-full text-sm">
         <thead>
@@ -195,13 +209,42 @@ export default function EggMappingPage() {
               <td className="p-2 text-right space-x-2">
                 {editingId === m.id ? (
                   <>
-                    <button onClick={() => updateMapping(m.id)} className="text-green-400 hover:text-green-600">Speichern</button>
-                    <button onClick={() => { setEditingId(null); setEditEggId('') }} className="text-gray-400 hover:text-white">Abbrechen</button>
+                    {hasPermission('admin.eggs.edit') && (
+                      <button
+                        onClick={() => updateMapping(m.id)}
+                        className="text-green-400 hover:text-green-600"
+                      >
+                        Speichern
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setEditingId(null); setEditEggId('') }}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      Abbrechen
+                    </button>
                   </>
                 ) : (
                   <>
-                    <button onClick={() => { setEditingId(m.id); setEditEggId(String(m.egg_id)) }} className="text-yellow-400 hover:text-yellow-600">Bearbeiten</button>
-                    <button onClick={() => deleteMapping(m.id)} className="text-red-400 hover:text-red-600">Löschen</button>
+                    {hasPermission('admin.eggs.edit') && (
+                      <button
+                        onClick={() => {
+                          setEditingId(m.id)
+                          setEditEggId(String(m.egg_id))
+                        }}
+                        className="text-yellow-400 hover:text-yellow-600"
+                      >
+                        Bearbeiten
+                      </button>
+                    )}
+                    {hasPermission('admin.eggs.delete') && (
+                      <button
+                        onClick={() => deleteMapping(m.id)}
+                        className="text-red-400 hover:text-red-600"
+                      >
+                        Löschen
+                      </button>
+                    )}
                   </>
                 )}
               </td>

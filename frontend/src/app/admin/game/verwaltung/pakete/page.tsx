@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
-import { useAuthRedirect } from '@/lib/useAuthRedirect'
+import { usePermissionGuard } from '@/lib/usePermissionGuard'
+import { usePermissions } from '@/lib/usePermissions'
 
 export default function PaketeAdminPage() {
-    useAuthRedirect()
+    usePermissionGuard('admin.pakete.view')
+    const { hasPermission } = usePermissions()
     const [pakete, setPakete] = useState<any[]>([])
     const [edit, setEdit] = useState<any | null>(null)
     const [token, setToken] = useState<string | null>(null)
@@ -92,14 +94,23 @@ export default function PaketeAdminPage() {
 
     return (
         <div className="p-8 max-w-4xl mx-auto text-white">
+            <div className="mb-4">
+                <a
+                    href="/admin/game/dashboard"
+                    className="inline-block bg-gray-700 hover:bg-gray-600 text-white text-sm px-4 py-2 rounded"
+                >
+                    ← Zurück zur Übersicht
+                </a>
+            </div>
             <h1 className="text-2xl font-bold mb-6">Pakete verwalten</h1>
-
-            <button
-                onClick={() => setEdit({ id: '', label: '', ram: 2, disk: 10, backup: 1, tables: 1, price_eur: 0, price_dynamic: false, sort: 0 })}
-                className="mb-6 bg-blue-600 px-4 py-2 rounded"
-            >
-                ➕ Neues Paket
-            </button>
+            {hasPermission('admin.pakete.create') && (
+                <button
+                    onClick={() => setEdit({ id: '', label: '', ram: 2, disk: 10, backup: 1, tables: 1, price_eur: 0, price_dynamic: false, sort: 0 })}
+                    className="mb-6 bg-blue-600 px-4 py-2 rounded"
+                >
+                    ➕ Neues Paket
+                </button>
+            )}
 
             <table className="w-full text-sm mb-8">
                 <thead>
@@ -109,6 +120,7 @@ export default function PaketeAdminPage() {
                         <th className="p-2">RAM</th>
                         <th className="p-2">Disk</th>
                         <th className="p-2">€</th>
+                        <th className="p-2">Coins</th>
                         <th className="p-2">Sort</th>
                         <th className="p-2"></th>
                     </tr>
@@ -125,15 +137,22 @@ export default function PaketeAdminPage() {
                                     ? Number(p.price_eur).toFixed(2)
                                     : '–'}
                             </td>
+                            <td className="p-2">{p.price_coins ?? '–'}</td>
                             <td className="p-2">{p.sort}</td>
                             <td className="p-2 text-right space-x-2">
-                                <button onClick={() => setEdit(p)} className="text-yellow-400">Bearbeiten</button>
-                                {p.archived ? (
+                                {hasPermission('admin.pakete.edit') && (
+                                    <button onClick={() => setEdit(p)} className="text-yellow-400">Bearbeiten</button>
+                                )}
+
+                                {hasPermission('admin.pakete.archive') && (p.archived ? (
                                     <button onClick={() => unarchive(p.id)} className="text-green-400">Reaktivieren</button>
                                 ) : (
                                     <button onClick={() => archive(p.id)} className="text-gray-400">Archivieren</button>
+                                )
                                 )}
-                                <button onClick={() => del(p.id)} className="text-red-400">Löschen</button>
+                                {hasPermission('admin.pakete.delete') && (
+                                    <button onClick={() => del(p.id)} className="text-red-400">Löschen</button>
+                                )}
                             </td>
                         </tr>
                     ))}

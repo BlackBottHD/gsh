@@ -21,12 +21,17 @@ const verifyToken = (req, res, next) => {
 
 router.use(verifyToken)
 
-// 📌 GET /api/admin/pakete
+// GET /api/admin/pakete
 router.get('/',
   requirePermission('admin.pakete.view'),
   async (req, res) => {
     try {
       const rows = await db.query('SELECT * FROM pakete ORDER BY sort ASC')
+
+      if (!Array.isArray(rows)) {
+        console.error('[PAKETE GET] Ergebnis ist kein Array:', rows)
+        return res.status(500).json({ error: 'Fehler beim Laden der Pakete (kein Array)' })
+      }
 
       const grouped = {}
       for (const row of rows) {
@@ -52,6 +57,7 @@ router.get('/',
   }
 )
 
+
 // 📌 POST /api/admin/pakete
 router.post('/',
   requirePermission('admin.pakete.create'),
@@ -59,11 +65,16 @@ router.post('/',
     const { id, label, ram, disk, backup, tables, price_eur, price_dynamic } = req.body
     if (!id || !label) return res.status(400).json({ message: 'ID und Label erforderlich' })
 
+    const [cfgRows] = await db.query("SELECT data FROM cfg WHERE value = 'coins_per_eur'")
+    const cfg = cfgRows?.[0]
+    const rate = cfg ? JSON.parse(cfg.data).rate || 2 : 2
+    const price_coins = Math.ceil((parseFloat(price_eur) || 0) * rate)
+
     try {
       await db.query(
-        `REPLACE INTO pakete (id, label, ram, disk, backup, tables, price_eur, price_dynamic, archived)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-        [id, label, ram, disk, backup, tables, price_eur, price_dynamic ? 1 : 0]
+        `REPLACE INTO pakete (id, label, ram, disk, backup, tables, price_eur, price_coins, price_dynamic, archived)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [id, label, ram, disk, backup, tables, price_eur, price_coins, price_dynamic ? 1 : 0]
       )
       res.json({ message: 'Paket gespeichert' })
     } catch (err) {
@@ -122,6 +133,11 @@ router.patch('/',
     const { id, label, ram, disk, backup, tables, price_eur, price_dynamic } = req.body
     if (!id || !label) return res.status(400).json({ message: 'ID und Label erforderlich' })
 
+    const [cfgRows] = await db.query("SELECT data FROM cfg WHERE value = 'coins_per_eur'")
+    const cfg = cfgRows?.[0]
+    const rate = cfg ? JSON.parse(cfg.data).rate || 2 : 2
+    const price_coins = Math.ceil((parseFloat(price_eur) || 0) * rate)
+
     try {
       await db.query(
         `UPDATE pakete SET
@@ -131,9 +147,10 @@ router.patch('/',
            backup = ?,
            tables = ?,
            price_eur = ?,
+           price_coins = ?,
            price_dynamic = ?
          WHERE id = ?`,
-        [label, ram, disk, backup, tables, price_eur, price_dynamic ? 1 : 0, id]
+        [label, ram, disk, backup, tables, price_eur, price_coins, price_dynamic ? 1 : 0, id]
       )
       res.json({ message: 'Paket aktualisiert' })
     } catch (err) {

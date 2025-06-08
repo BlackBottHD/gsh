@@ -50,6 +50,7 @@ function requirePermission(permission) {
 
     try {
       const perms = await getUserPermissions(userId)
+      
 
       if (!perms[permission]) {
         return res.status(403).json({ message: 'Keine Berechtigung' })

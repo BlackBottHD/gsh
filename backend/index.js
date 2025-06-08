@@ -6,6 +6,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const updateNodeResources = require('./services/pteroResourceUpdater')
+
+updateNodeResources()
+setInterval(updateNodeResources, 15 * 60 * 1000)
+
+
 const paketeRoute = require('./routes/pakete');
 const authRoutes = require('./routes/auth')
 const serverRoutes = require('./routes/server')

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-
 export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: { forceShow?: boolean; forceRedirectTo?: string }) {
   const router = useRouter()
   const [showPopup, setShowPopup] = useState(false)
@@ -13,34 +12,34 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [repeat, setRepeat] = useState('')
+  const [phone, setPhone] = useState('')
   const [error, setError] = useState('')
 
-useEffect(() => {
-  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-  if (!token) return setShowPopup(true)
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
+    if (!token) return setShowPopup(true)
 
-  fetch('http://localhost:3001/api/auth/userinfo', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then(res => {
-      if (!res.ok) throw new Error()
-      return res.json()
+    fetch('http://localhost:3001/api/auth/userinfo', {
+      headers: { Authorization: `Bearer ${token}` },
     })
-    .then(data => {
-
-      if (forceShow || !data?.id) {
-        setShowPopup(true)
-      } else {
-        setShowPopup(false)
-      }
-    })
-    .catch(() => setShowPopup(true))
-}, [forceShow])
-
+      .then(res => {
+        if (!res.ok) throw new Error()
+        return res.json()
+      })
+      .then(data => {
+        if (forceShow || !data?.id) {
+          setShowPopup(true)
+        } else {
+          setShowPopup(false)
+        }
+      })
+      .catch(() => setShowPopup(true))
+  }, [forceShow])
 
   const handleSubmit = async () => {
     setError('')
-    if (!password || (tab === 'register' && (!identifier || !username || password !== repeat))) {
+
+    if (!password || (tab === 'register' && (!identifier || !username || password !== repeat || !phone))) {
       setError('Bitte fülle alle Felder korrekt aus.')
       return
     }
@@ -48,7 +47,7 @@ useEffect(() => {
     try {
       const body = tab === 'login'
         ? { identifier, password }
-        : { email: identifier, username, password }
+        : { email: identifier, username, password, phone }
 
       const res = await fetch(`http://localhost:3001/api/auth/${tab}`, {
         method: 'POST',
@@ -66,15 +65,14 @@ useEffect(() => {
       setShowPopup(false)
 
       if (forceRedirectTo) {
-        router.push(forceRedirectTo) // ← Next.js Routing verwenden
+        router.push(forceRedirectTo)
       } else {
-        router.refresh() // besser als reload
+        router.refresh()
       }
     } catch (err) {
       setError('Serverfehler. Bitte später erneut versuchen.')
     }
   }
-
 
   if (!showPopup) return null
 
@@ -115,6 +113,13 @@ useEffect(() => {
                 value={identifier}
                 onChange={e => setIdentifier(e.target.value)}
                 placeholder="E-Mail"
+                className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
+              />
+              <input
+                type="text"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Handynummer (z. B. +491701234567)"
                 className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
               />
             </>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import md5 from 'md5'
+import { usePermissions } from '@/lib/usePermissions' // passe den Pfad ggf. an
 
 type UserInfo = {
   email: string
@@ -15,6 +16,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const { hasPermission, isReady } = usePermissions()
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token')
@@ -63,7 +65,9 @@ export default function Header() {
           {/* Navigation */}
           <nav className="hidden sm:flex gap-4 text-sm">
             <Link href="/dashboard" className="hover:text-gray-300">Dashboard</Link>
-            {/* Weitere Einträge z. B.: <Link href="/meine-server">Meine Server</Link> */}
+            {isReady && hasPermission('admin.dashboard.open') && (
+              <Link href="/admin" className="hover:text-gray-300">Adminportal</Link>
+            )}
           </nav>
 
           {/* Gravatar + Dropdown */}
@@ -105,4 +109,3 @@ export default function Header() {
     </header>
   )
 }
-
