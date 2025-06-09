@@ -75,7 +75,7 @@ router.post('/new', requirePermission('admin.usermanagement.create.user'), async
 
     await conn.commit()
 
-    const resetLink = `${process.env.APP_URL || 'http://localhost:3002'}/passwort-setzen?token=${resetToken}`
+    const resetLink = `${process.env.APP_URL || 'http://localhost:3002'}/login/passwort-setzen?token=${resetToken}`
 
     await sendMail({
       userId,

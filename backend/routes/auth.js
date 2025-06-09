@@ -5,17 +5,19 @@ const db = require('../lib/db');
 const jwt = require('jsonwebtoken');
 const { getUserPermissions } = require('../lib/requirePermission');
 const sendSMS = require('../lib/sendSMS')
-const { canSendSMS, registerSMS  } = require('../lib/smsLimiter')
+const { canSendSMS, registerSMS } = require('../lib/smsLimiter')
+const sendMail = require('../lib/sendMail')
+const crypto = require('crypto')
 
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changemeplease';
 
 // 📌 Registrierung
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
-  console.debug('[REGISTER] Eingehende Daten:', { username, email, password });
+  const { username, email, phone } = req.body;
+  console.debug('[REGISTER] Eingehende Daten:', { username, email, phone });
 
-  if (!username || !email || !password) {
+  if (!username || !email || !phone) {
     console.warn('[REGISTER] Fehlende Felder');
     return res.status(400).json({ message: 'Alle Felder sind erforderlich' });
   }
@@ -26,38 +28,50 @@ router.post('/register', async (req, res) => {
       [email, username]
     );
 
-    console.debug('[REGISTER] Prüfergebnis bestehender Benutzer:', existing);
-
     if (existing.length > 0) {
-      console.warn('[REGISTER] Benutzername oder E-Mail bereits vergeben:', existing[0]);
       return res.status(409).json({ message: 'Benutzername oder E-Mail bereits vergeben' });
     }
 
-    const password_hash = await bcrypt.hash(password, 10);
-    console.debug('[REGISTER] Passwort-Hash erstellt');
+    const { token: resetToken, expires: resetExpires } = await generateUniqueResetToken();
 
-    const insertFields = [username, email, password_hash];
-    let sql = 'INSERT INTO users (username, email, password_hash';
+    const smsCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const smsExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 Minuten
 
-    if (process.env.NODE_ENV !== 'production') {
-      sql += ', password';
-      insertFields.push(password);
-    }
+    const result = await db.query(
+      `INSERT INTO users 
+        (username, email, phone, status, password_reset_token, password_reset_expires, SMS_token, SMS_token_expire) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [username, email, phone, 'pending', resetToken, resetExpires, smsCode, smsExpire]
+    );
 
-    sql += ') VALUES (?, ?, ?' + (process.env.NODE_ENV !== 'production' ? ', ?' : '') + ')';
+    const userId = result.insertId;
 
-    console.debug('[REGISTER] SQL-Befehl:', sql);
-    console.debug('[REGISTER] Insert-Werte:', insertFields);
+    const resetLink = `${process.env.APP_URL || 'http://localhost:3002'}/login/passwort-setzen?token=${resetToken}`;
 
-    const result = await db.query(sql, insertFields);
+    // ✉️ Mail
+    await sendMail({
+      userId,
+      to: email,
+      subject: 'Willkommen bei HGDEVS – Passwort festlegen',
+      template: 'welcome',
+      replacements: {
+        name: username,
+        resetLink
+      }
+    });
 
-    console.log('[REGISTER] Registrierung erfolgreich, ID:', result.insertId);
-    return res.status(201).json({ message: 'Registrierung erfolgreich', userId: result.insertId });
+    // 📲 SMS
+    await sendSMS(phone, `Dein HGDEVS Bestätigungscode: ${smsCode}`);
+
+    console.log('[REGISTER] Registrierung abgeschlossen. Mail & SMS versendet.');
+    res.status(201).json({ success: true, phone });
   } catch (err) {
-    console.error('[REGISTER] Interner Fehler:', err);
-    return res.status(500).json({ message: 'Interner Serverfehler' });
+    console.error('[REGISTER] Fehler:', err);
+    res.status(500).json({ message: 'Interner Serverfehler' });
   }
 });
+
+
 
 // 📌 Login (mit Benutzername oder E-Mail)
 router.post('/login', async (req, res) => {
@@ -171,5 +185,188 @@ router.post('/sms', async (req, res) => {
     res.status(500).json({ message: 'Fehler beim Senden der SMS' })
   }
 })
+
+router.post('/verify', async (req, res) => {
+  const { phone, code } = req.body
+
+  if (!phone || !code) {
+    return res.status(400).json({ message: 'Telefonnummer und Code sind erforderlich.' })
+  }
+
+  try {
+    const [rows] = await db.pool.execute(
+      'SELECT id, username, email, SMS_token, SMS_token_expire FROM users WHERE phone = ?',
+      [phone]
+    )
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'Benutzer nicht gefunden.' })
+    }
+
+    const user = rows[0]
+
+    if (!user.SMS_token || user.SMS_token !== code) {
+      return res.status(401).json({ message: 'Ungültiger Code.' })
+    }
+
+    const expireDate = new Date(user.SMS_token_expire)
+    if (expireDate < new Date()) {
+      return res.status(410).json({ message: 'Code abgelaufen.' })
+    }
+
+    // Token gültig → SMS-Token löschen (optional)
+    await db.pool.execute(
+      `UPDATE users 
+       SET SMS_token = NULL, SMS_token_expire = NULL 
+       WHERE id = ?`,
+      [user.id]
+    )
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    )
+
+    res.json({ token })
+  } catch (err) {
+    console.error('[SMS VERIFY] Fehler:', err)
+    res.status(500).json({ message: 'Serverfehler bei Verifizierung.' })
+  }
+})
+
+router.post('/forgot-request', async (req, res) => {
+  const { identifier } = req.body
+  console.debug('[forgot-request] Eingehender Request:', identifier)
+
+  if (!identifier) return res.status(400).json({ message: 'Fehlender Identifier' })
+
+  try {
+    const [rows] = await db.pool.query(
+      'SELECT * FROM users WHERE email = ? OR username = ? LIMIT 1',
+      [identifier, identifier]
+    )
+    const user = rows[0]
+    console.debug('[forgot-request] Benutzer gefunden:', user)
+
+    if (!user) return res.status(404).json({ message: 'Benutzer nicht gefunden' })
+    if (!user.phone) return res.status(400).json({ message: 'Keine Handynummer hinterlegt.' })
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expire = new Date(Date.now() + 15 * 60 * 1000)
+
+    console.debug(`[forgot-request] Generierter Code: ${code}, gültig bis: ${expire.toISOString()}`)
+
+    await db.pool.query(
+      'UPDATE users SET SMS_token = ?, SMS_token_expire = ? WHERE id = ?',
+      [code, expire, user.id]
+    )
+
+    console.debug('[forgot-request] Code gespeichert – SMS wird gesendet…')
+    await sendSMS(user.phone, `HGDEVS Code: ${code}`)
+
+    console.debug('[forgot-request] SMS versendet an:', user.phone)
+    res.json({ success: true, phone: user.phone }) // ✅ Telefonnummer mit zurückgeben
+  } catch (err) {
+    console.error('[forgot-request] Fehler:', err)
+    res.status(500).json({ message: 'Serverfehler' })
+  }
+})
+
+async function generateUniqueResetToken() {
+  const token = crypto.randomBytes(32).toString('hex')
+  const expires = new Date(Date.now() + 15 * 60 * 1000)
+  return { token, expires }
+}
+
+router.post('/forgot-verify', async (req, res) => {
+  const { phone, code } = req.body
+  console.debug('[forgot-verify] Eingehende Daten:', { phone, code })
+
+  if (!phone || !code) return res.status(400).json({ message: 'Fehlende Daten' })
+
+  try {
+    const [rows] = await db.pool.query(
+      'SELECT * FROM users WHERE phone = ? AND SMS_token = ? AND SMS_token_expire > NOW() LIMIT 1',
+      [phone, code]
+    )
+    const user = rows[0]
+
+    if (!user) return res.status(400).json({ message: 'Ungültiger oder abgelaufener Code' })
+
+    const { token: resetToken, expires: resetExpires } = await generateUniqueResetToken()
+
+    await db.pool.query(
+      'UPDATE users SET password_reset_token = ?, password_reset_expires = ?, SMS_token = NULL, SMS_token_expire = NULL WHERE id = ?',
+      [resetToken, resetExpires, user.id]
+    )
+
+    const resetLink = `${process.env.APP_URL || 'http://localhost:3002'}/login/passwort-setzen?token=${resetToken}`
+
+    await sendMail({
+      userId: user.id,
+      to: user.email,
+      subject: 'Passwort zurücksetzen – HGDEVS',
+      template: 'reset-password',
+      replacements: {
+        name: user.username || user.email,
+        resetLink
+      }
+    })
+
+    console.debug('[forgot-verify] Reset-Link gesendet an:', user.email)
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[forgot-verify] Fehler:', err)
+    res.status(500).json({ message: 'Fehler beim Verifizieren' })
+  }
+})
+
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  console.debug('[reset-password] Token:', token);
+
+  if (!token || !password) {
+    return res.status(400).json({ message: 'Token oder Passwort fehlt.' });
+  }
+
+  try {
+    const [rows] = await db.pool.query(
+      'SELECT * FROM users WHERE password_reset_token = ? LIMIT 1',
+      [token]
+    );
+    const user = rows[0];
+    if (!user) {
+      console.warn('[reset-password] Ungültiger Token');
+      return res.status(400).json({ message: 'Ungültiger oder abgelaufener Link.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    await db.pool.query(
+      'UPDATE users SET password_hash = ?, password_reset_token = NULL WHERE id = ?',
+      [password_hash, user.id]
+    );
+
+    console.log('[reset-password] Passwort zurückgesetzt für User ID:', user.id);
+    await sendMail({
+      userId: user.id,
+      to: user.email,
+      subject: 'Passwort geändert',
+      template: 'changed-password',
+      replacements: {
+        name: user.username || user.email,
+      }
+    })
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[reset-password] Fehler:', err);
+    res.status(500).json({ message: 'Serverfehler beim Zurücksetzen.' });
+  }
+});
+
 
 module.exports = router;

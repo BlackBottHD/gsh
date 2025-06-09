@@ -15,5 +15,8 @@ module.exports = {
     const [rows] = await pool.execute(sql, params)
     return rows
   },
-  pool // ⬅️ wichtig für getConnection()
+  raw: async (sql, params) => {
+    return await pool.execute(sql, params)
+  },
+  pool
 }

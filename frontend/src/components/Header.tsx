@@ -68,6 +68,9 @@ export default function Header() {
             {isReady && hasPermission('admin.dashboard.open') && (
               <Link href="/admin" className="hover:text-gray-300">Adminportal</Link>
             )}
+            {isReady && hasPermission('admin.todo.view') && (
+              <Link href="/admin/todo" className="hover:text-gray-300">Todos</Link>
+            )}
           </nav>
 
           {/* Gravatar + Dropdown */}

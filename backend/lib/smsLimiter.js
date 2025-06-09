@@ -1,10 +1,17 @@
 const db = require('./db')
 
+const WHITELIST = ['+491702682218']  // Nummern ohne SMS-Limit
+
 /**
  * Prüft, ob eine SMS an die Telefonnummer gesendet werden darf.
  */
 async function canSendSMS(phone) {
   console.debug('[SMS LIMIT] Prüfung für Nummer:', phone)
+
+  if (WHITELIST.includes(phone)) {
+    console.debug('[SMS LIMIT] Whitelist aktiv – kein Limit für:', phone)
+    return true
+  }
 
   const rows = await db.query(
     'SELECT sms_last_sent, sms_daily_count FROM sms_limits WHERE phone = ?',
@@ -41,6 +48,11 @@ async function canSendSMS(phone) {
  */
 async function registerSMS(phone) {
   console.debug('[SMS LIMIT] Registrierung für Nummer:', phone)
+
+  if (WHITELIST.includes(phone)) {
+    console.debug('[SMS LIMIT] Whitelist – Registrierung übersprungen für:', phone)
+    return
+  }
 
   const now = new Date()
   const midnight = new Date()

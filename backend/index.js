@@ -22,6 +22,7 @@ const statsAdminRoutes = require('./routes/admin/stats')
 const userAdminRoutes = require('./routes/admin/users')
 const rollenAdminRoutes = require('./routes/admin/rollen')
 const permsRollenAdminRoutes = require('./routes/admin/perms_rollen')
+const todoRoutes = require('./routes/admin/todo')
 
 
 app.use('/api/pakete', paketeRoute);
@@ -34,6 +35,7 @@ app.use('/api/admin/stats', statsAdminRoutes);
 app.use('/api/admin/users', userAdminRoutes);
 app.use('/api/admin/rollen', rollenAdminRoutes);
 app.use('/api/admin/rollen/perms', permsRollenAdminRoutes);
+app.use('/api/admin/todo', todoRoutes);
 
 
 // Beispielroute
