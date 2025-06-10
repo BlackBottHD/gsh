@@ -40,7 +40,7 @@ export default function AdminUsersPage() {
   }, [token])
 
   const fetchUsers = async () => {
-    const res = await fetch('http://localhost:3001/api/admin/users', {
+    const res = await fetch('http://10.1.0.122:3001/api/admin/users', {
       headers: { Authorization: `Bearer ${token}` }
     })
     const json = await res.json()
@@ -53,7 +53,7 @@ export default function AdminUsersPage() {
   }
 
   const fetchRollen = async () => {
-    const res = await fetch('http://localhost:3001/api/admin/rollen', {
+    const res = await fetch('http://10.1.0.122:3001/api/admin/rollen', {
       headers: { Authorization: `Bearer ${token}` }
     })
     const json = await res.json()
@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
 
   const deleteUser = async (id: number) => {
     if (!confirm('Benutzer wirklich löschen?')) return
-    await fetch(`http://localhost:3001/api/admin/users/${id}`, {
+    await fetch(`http://10.1.0.122:3001/api/admin/users/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
 
   const deleteRolle = async (id: number) => {
     if (!confirm('Rolle wirklich löschen?')) return
-    await fetch(`http://localhost:3001/api/admin/rollen/${id}`, {
+    await fetch(`http://10.1.0.122:3001/api/admin/rollen/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     })

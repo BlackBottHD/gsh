@@ -20,7 +20,7 @@ export default function HomePage() {
   const [pakete, setPakete] = useState<Paket[]>([])
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/pakete')
+    fetch('http://10.1.0.122:3001/api/pakete')
       .then(res => res.json())
       .then(setPakete)
       .catch(err => console.error('Fehler beim Laden der Pakete:', err))

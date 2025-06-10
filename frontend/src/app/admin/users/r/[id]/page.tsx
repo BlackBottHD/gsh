@@ -30,7 +30,7 @@ export default function RollenEditPage() {
   }, [id, token])
 
   const fetchRolle = async () => {
-    const res = await fetch(`http://localhost:3001/api/admin/rollen`, {
+    const res = await fetch(`http://10.1.0.122:3001/api/admin/rollen`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     const data = await res.json()
@@ -42,7 +42,7 @@ export default function RollenEditPage() {
   }
 
   const fetchPermissions = async () => {
-    const res = await fetch(`http://localhost:3001/api/admin/rollen/perms/${id}`, {
+    const res = await fetch(`http://10.1.0.122:3001/api/admin/rollen/perms/${id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     const data = await res.json()
@@ -50,7 +50,7 @@ export default function RollenEditPage() {
   }
 
   const togglePermission = async (perm: Permission) => {
-    const res = await fetch(`http://localhost:3001/api/admin/rollen/perms/${id}`, {
+    const res = await fetch(`http://10.1.0.122:3001/api/admin/rollen/perms/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export default function RollenEditPage() {
 
   const saveRolle = async () => {
     setSaving(true)
-    await fetch(`http://localhost:3001/api/admin/rollen/${id}`, {
+    await fetch(`http://10.1.0.122:3001/api/admin/rollen/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

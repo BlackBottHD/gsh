@@ -20,7 +20,7 @@ export default function PaketeAdminPage() {
 
     const fetchPakete = async () => {
         try {
-            const res = await fetch('http://localhost:3001/api/admin/pakete', {
+            const res = await fetch('http://10.1.0.122:3001/api/admin/pakete', {
                 headers: { Authorization: `Bearer ${token}` }
             })
 
@@ -51,7 +51,7 @@ export default function PaketeAdminPage() {
     }
 
     const save = async () => {
-        const res = await fetch('http://localhost:3001/api/admin/pakete', {
+        const res = await fetch('http://10.1.0.122:3001/api/admin/pakete', {
             method: pakete.some(p => p.id === edit.id) ? 'PATCH' : 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export default function PaketeAdminPage() {
 
     const del = async (id: string) => {
         if (!confirm('Wirklich löschen?')) return
-        await fetch(`http://localhost:3001/api/admin/pakete/${id}`, {
+        await fetch(`http://10.1.0.122:3001/api/admin/pakete/${id}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -77,7 +77,7 @@ export default function PaketeAdminPage() {
     }
 
     const archive = async (id: string) => {
-        await fetch(`http://localhost:3001/api/admin/pakete/${id}/archive`, {
+        await fetch(`http://10.1.0.122:3001/api/admin/pakete/${id}/archive`, {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -85,7 +85,7 @@ export default function PaketeAdminPage() {
     }
 
     const unarchive = async (id: string) => {
-        await fetch(`http://localhost:3001/api/admin/pakete/${id}/unarchive`, {
+        await fetch(`http://10.1.0.122:3001/api/admin/pakete/${id}/unarchive`, {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${token}` }
         })

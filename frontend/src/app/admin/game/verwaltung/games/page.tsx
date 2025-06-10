@@ -24,12 +24,12 @@ export default function GamesAdminPage() {
 
   useEffect(() => {
     if (!token) return
-    fetch('http://localhost:3001/api/pakete').then(res => res.json()).then(setPakete)
+    fetch('http://10.1.0.122:3001/api/pakete').then(res => res.json()).then(setPakete)
     fetchGames()
   }, [token])
 
   const fetchGames = async () => {
-    const res = await fetch('http://localhost:3001/api/admin/games', {
+    const res = await fetch('http://10.1.0.122:3001/api/admin/games', {
       headers: { Authorization: `Bearer ${token}` }
     })
     const data = await res.json()
@@ -73,7 +73,7 @@ export default function GamesAdminPage() {
     if (!edit?.game_id || !edit.name || !edit.variants.length) return alert('Felder unvollständig')
     const method = 'POST'
 
-    const res = await fetch('http://localhost:3001/api/admin/games', {
+    const res = await fetch('http://10.1.0.122:3001/api/admin/games', {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export default function GamesAdminPage() {
 
   const del = async (id: string) => {
     if (!confirm('Wirklich löschen?')) return
-    await fetch(`http://localhost:3001/api/admin/games/${id}`, {
+    await fetch(`http://10.1.0.122:3001/api/admin/games/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
     })

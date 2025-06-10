@@ -41,7 +41,7 @@ export default function ServerErstellenPage() {
 
     console.debug('[HGDEVS] Lade Daten für Paket-ID:', paketId)
 
-    fetch('http://localhost:3001/api/pakete')
+    fetch('http://10.1.0.122:3001/api/pakete')
       .then(res => res.json())
       .then((pakete: Paket[]) => {
         const found = pakete.find(p => p.id === paketId)
@@ -76,7 +76,7 @@ export default function ServerErstellenPage() {
     }
   
     try {
-      const res = await fetch('http://localhost:3001/api/server', {
+      const res = await fetch('http://10.1.0.122:3001/api/server', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

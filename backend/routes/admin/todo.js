@@ -79,6 +79,9 @@ router.patch('/:id', async (req, res) => {
         case 'fertig':
           dateText = `abgeschlossen am ${new Date().toLocaleDateString('de-DE')}`
           break
+        case 'abgelehnt':
+          dateText = `abgelehnt am ${new Date().toLocaleDateString('de-DE')}`
+          break
         default:
           dateText = `in Ausarbeitung seit ${new Date().toLocaleDateString('de-DE')}`
       }

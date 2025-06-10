@@ -45,7 +45,7 @@ export default function TodoEditPage() {
       return
     }
 
-    fetch(`http://localhost:3001/api/admin/todo`, {
+    fetch(`http://10.1.0.122:3001/api/admin/todo`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -83,7 +83,7 @@ export default function TodoEditPage() {
 
     console.debug('[TODO] Sende Änderungen:', body)
 
-    const res = await fetch(`http://localhost:3001/api/admin/todo/${todo.id}`, {
+    const res = await fetch(`http://10.1.0.122:3001/api/admin/todo/${todo.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

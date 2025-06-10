@@ -32,7 +32,7 @@ export default function AdminDashboardPage() {
       await Promise.all(
         Object.entries(STAT_ENDPOINTS).map(async ([key, url]) => {
           try {
-            const res = await fetch(`http://localhost:3001${url}`, {
+            const res = await fetch(`http://10.1.0.122:3001${url}`, {
               headers: { Authorization: `Bearer ${token}` },
             })
             const json = await res.json()

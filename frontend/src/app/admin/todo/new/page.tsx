@@ -21,7 +21,7 @@ export default function TodoNewPage() {
 
     console.debug('[TODO] Sende Daten:', { title, description: desc })
 
-    const res = await fetch('http://localhost:3001/api/admin/todo', {
+    const res = await fetch('http://10.1.0.122:3001/api/admin/todo', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

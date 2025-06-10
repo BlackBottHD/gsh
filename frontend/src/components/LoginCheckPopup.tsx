@@ -22,7 +22,7 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
     if (!token) return setShowPopup(true)
 
-    fetch('http://localhost:3001/api/auth/userinfo', {
+    fetch('http://10.1.0.122:3001/api/auth/userinfo', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
@@ -50,7 +50,7 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
         ? { identifier, password }
         : { email: identifier, username, password, phone }
 
-      const res = await fetch(`http://localhost:3001/api/auth/${tab}`, {
+      const res = await fetch(`http://10.1.0.122:3001/api/auth/${tab}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -81,7 +81,7 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
   const handleVerify = async () => {
     setError('')
     try {
-      const res = await fetch(`http://localhost:3001/api/auth/verify`, {
+      const res = await fetch(`http://10.1.0.122:3001/api/auth/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code: smsCode })
@@ -115,7 +115,7 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
     }
 
     try {
-      const res = await fetch('http://localhost:3001/api/auth/forgot-request', {
+      const res = await fetch('http://10.1.0.122:3001/api/auth/forgot-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier })
@@ -137,7 +137,7 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
   const handleForgotVerify = async () => {
     setError('')
     try {
-      const res = await fetch(`http://localhost:3001/api/auth/forgot-verify`, {
+      const res = await fetch(`http://10.1.0.122:3001/api/auth/forgot-verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code: smsCode })

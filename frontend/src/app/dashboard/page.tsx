@@ -14,7 +14,7 @@ export default function DashboardPage() {
       return
     }
 
-    fetch('http://localhost:3001/api/auth/userinfo', {
+    fetch('http://10.1.0.122:3001/api/auth/userinfo', {
       headers: {
         Authorization: `Bearer ${token}`
       }

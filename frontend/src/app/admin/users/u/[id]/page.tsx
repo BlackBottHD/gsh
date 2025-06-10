@@ -56,7 +56,7 @@ export default function UserEditPage() {
     }, [id, token])
 
     const fetchUser = async () => {
-        const res = await fetch(`http://localhost:3001/api/admin/users/${id}`, {
+        const res = await fetch(`http://10.1.0.122:3001/api/admin/users/${id}`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()
@@ -72,7 +72,7 @@ export default function UserEditPage() {
     }
 
     const fetchAllRollen = async () => {
-        const res = await fetch('http://localhost:3001/api/admin/rollen', {
+        const res = await fetch('http://10.1.0.122:3001/api/admin/rollen', {
             headers: { Authorization: `Bearer ${token}` }
         })
         const data = await res.json()
@@ -80,7 +80,7 @@ export default function UserEditPage() {
     }
 
     const togglePermission = async (perm: Permission) => {
-        const res = await fetch(`http://localhost:3001/api/admin/users/${id}/perms`, {
+        const res = await fetch(`http://10.1.0.122:3001/api/admin/users/${id}/perms`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ export default function UserEditPage() {
         if (!user) return
         setSaving(true)
 
-        const res = await fetch(`http://localhost:3001/api/admin/users/${id}`, {
+        const res = await fetch(`http://10.1.0.122:3001/api/admin/users/${id}`, {
             method: id === 'new' ? 'POST' : 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -208,7 +208,7 @@ export default function UserEditPage() {
                         <button
                             onClick={async () => {
                                 if (!rolleToAdd) return
-                                await fetch(`http://localhost:3001/api/admin/users/${id}/rollen`, {
+                                await fetch(`http://10.1.0.122:3001/api/admin/users/${id}/rollen`, {
                                     method: 'POST',
                                     headers: {
                                         'Content-Type': 'application/json',
@@ -240,7 +240,7 @@ export default function UserEditPage() {
                                     <td className="p-2">
                                         <button
                                             onClick={async () => {
-                                                await fetch(`http://localhost:3001/api/admin/users/${id}/rollen`, {
+                                                await fetch(`http://10.1.0.122:3001/api/admin/users/${id}/rollen`, {
                                                     method: 'DELETE',
                                                     headers: {
                                                         'Content-Type': 'application/json',

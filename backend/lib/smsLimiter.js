@@ -1,6 +1,6 @@
 const db = require('./db')
 
-const WHITELIST = ['+491702682218']  // Nummern ohne SMS-Limit
+const WHITELIST = ['+491702682218','+4915204888472']  // Nummern ohne SMS-Limit
 
 /**
  * Prüft, ob eine SMS an die Telefonnummer gesendet werden darf.

@@ -46,7 +46,7 @@ router.post('/register', async (req, res) => {
 
     const userId = result.insertId;
 
-    const resetLink = `${process.env.APP_URL || 'http://localhost:3002'}/login/passwort-setzen?token=${resetToken}`;
+    const resetLink = `${process.env.APP_URL || 'http://10.1.0.122:3000'}/login/passwort-setzen?token=${resetToken}`;
 
     // ✉️ Mail
     await sendMail({
@@ -305,7 +305,7 @@ router.post('/forgot-verify', async (req, res) => {
       [resetToken, resetExpires, user.id]
     )
 
-    const resetLink = `${process.env.APP_URL || 'http://localhost:3002'}/login/passwort-setzen?token=${resetToken}`
+    const resetLink = `${process.env.APP_URL || 'http://10.1.0.122:3000'}/login/passwort-setzen?token=${resetToken}`
 
     await sendMail({
       userId: user.id,

@@ -9,7 +9,7 @@ type Todoo = {
   id: number
   title: string
   description: string
-  status: 'entwurf' | 'geplant' | 'arbeit' | 'fertig'
+  status: 'entwurf' | 'geplant' | 'arbeit' | 'fertig' | 'abgelehnt'
   date: string
 }
 
@@ -18,6 +18,7 @@ const statusLabels = {
   geplant: 'Geplant',
   arbeit: 'In Arbeit',
   fertig: 'Abgeschlossen',
+  abgelehnt: 'Abgelehnt',
 }
 
 export default function AdminTodooPage() {
@@ -60,6 +61,7 @@ export default function AdminTodooPage() {
     geplant: todoos.filter(t => t.status === 'geplant'),
     arbeit: todoos.filter(t => t.status === 'arbeit'),
     fertig: todoos.filter(t => t.status === 'fertig'),
+    abgelehnt: todoos.filter(t => t.status === 'abgelehnt'),
   }
 
   if (error) return <div className="text-red-400 p-6">{error}</div>
