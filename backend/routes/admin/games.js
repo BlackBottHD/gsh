@@ -42,8 +42,9 @@ router.get('/',
             variant_name: va.variant_name,
             version: va.version,
             excluded_pakete: excludes
-              .filter(ex => ex.variant_id === va.id)
+              .filter(ex => String(ex.variant_id) === String(va.id))
               .map(ex => ex.paket_id)
+
           }))
 
         const p = pakete
