@@ -8,14 +8,18 @@ export function usePermissions() {
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
-    if (!token) return
+    if (!token) {
+      setPermissions([])         // <--- Leer machen
+      setIsReady(true)           // <--- Immer fertig!
+      return
+    }
 
     fetch('http://10.1.0.122:3001/api/auth/userinfo', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.ok ? res.json() : Promise.reject())
       .then(data => {
-        if (data?.permissions) setPermissions(data.permissions)
+        setPermissions(data?.permissions || [])
         setIsReady(true)
       })
       .catch(() => setIsReady(true))

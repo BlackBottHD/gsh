@@ -3,8 +3,10 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { usePermissions } from '@/lib/usePermissions'
+import { usePermissionGuard } from '@/lib/usePermissionGuard'
 
 export default function TodoNewPage() {
+  usePermissionGuard('admin.todo.create')
   const router = useRouter()
   const { hasPermission, isReady } = usePermissions()
 

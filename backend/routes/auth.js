@@ -368,5 +368,164 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// 📌 Registrierung: SMS erneut senden (mit Limit)
+router.post('/register/resend-sms', async (req, res) => {
+  const { phone } = req.body
+  if (!phone || !/^\+?[1-9]\d{7,15}$/.test(phone)) {
+    return res.status(400).json({ message: 'Ungültige Telefonnummer' })
+  }
+
+  try {
+    // Nutzer muss existieren & pending sein
+    const [users] = await db.pool.query(
+      'SELECT id FROM users WHERE phone = ? AND status = "pending" LIMIT 1',
+      [phone]
+    )
+    if (!users.length) {
+      return res.status(404).json({ message: 'Kein Benutzer mit dieser Nummer (pending) gefunden' })
+    }
+    const userId = users[0].id
+
+    // Hole sms_limits
+    const [limits] = await db.pool.query(
+      'SELECT sms_last_sent, sms_resend_count FROM sms_limits WHERE phone = ?',
+      [phone]
+    )
+
+    let smsResendCount = 0
+    let lastResend = null
+    if (limits.length) {
+      smsResendCount = limits[0].sms_resend_count || 0
+      lastResend = limits[0].sms_last_sent ? new Date(limits[0].sms_last_sent) : null
+    }
+
+    // Begrenzung: max 3 Resends
+    if (smsResendCount >= 3) {
+      return res.status(429).json({ message: 'Maximale Anzahl an SMS-Wiederholungen erreicht.' })
+    }
+
+    // Begrenzung: min 2 Min Abstand
+    if (lastResend) {
+      const now = new Date()
+      if (now - lastResend < 2 * 60 * 1000) {
+        return res.status(429).json({ message: 'Du musst 2 Minuten warten, bevor du erneut eine SMS anfordern kannst.' })
+      }
+    }
+
+    const smsCode = Math.floor(100000 + Math.random() * 900000).toString()
+    const smsExpire = new Date(Date.now() + 15 * 60 * 1000)
+    const now = new Date()
+
+    // SMS schicken
+    await sendSMS(phone, `Dein HGDEVS Bestätigungscode: ${smsCode}`)
+
+    // SMS-Code im User speichern
+    await db.pool.query(
+      'UPDATE users SET SMS_token = ?, SMS_token_expire = ? WHERE id = ?',
+      [smsCode, smsExpire, userId]
+    )
+
+    // sms_limits aktualisieren
+    if (limits.length) {
+      await db.pool.query(
+        'UPDATE sms_limits SET sms_last_sent = ?, sms_resend_count = sms_resend_count + 1 WHERE phone = ?',
+        [now, phone]
+      )
+    } else {
+      await db.pool.query(
+        'INSERT INTO sms_limits (phone, sms_last_sent, sms_daily_count, sms_resend_count) VALUES (?, ?, 0, 1)',
+        [phone, now]
+      )
+    }
+
+    res.json({ success: true, message: 'SMS erneut versendet.' })
+  } catch (err) {
+    console.error('[register/resend-sms] Fehler:', err)
+    res.status(500).json({ message: 'Fehler beim erneuten Senden der SMS.' })
+  }
+})
+
+// 📌 Passwort-Reset: SMS erneut senden (mit Limit)
+router.post('/forgot-resend-sms', async (req, res) => {
+  const { phone } = req.body
+  if (!phone || !/^\+?[1-9]\d{7,15}$/.test(phone)) {
+    return res.status(400).json({ message: 'Ungültige Telefonnummer' })
+  }
+
+  try {
+    // Nutzer muss existieren
+    const [users] = await db.pool.query(
+      'SELECT id FROM users WHERE phone = ? LIMIT 1',
+      [phone]
+    )
+    if (!users.length) {
+      return res.status(404).json({ message: 'Kein Benutzer mit dieser Nummer gefunden' })
+    }
+    const userId = users[0].id
+
+    // Hole sms_limits
+    const [limits] = await db.pool.query(
+      'SELECT sms_last_sent, sms_resend_count FROM sms_limits WHERE phone = ?',
+      [phone]
+    )
+
+    let smsResendCount = 0
+    let lastResend = null
+    if (limits.length) {
+      smsResendCount = limits[0].sms_resend_count || 0
+      lastResend = limits[0].sms_last_sent ? new Date(limits[0].sms_last_sent) : null
+    }
+
+    // Begrenzung: max 3 Resends
+    if (smsResendCount >= 3) {
+      return res.status(429).json({ message: 'Maximale Anzahl an SMS-Wiederholungen erreicht.' })
+    }
+
+    // Begrenzung: min 2 Min Abstand
+    if (lastResend) {
+      const now = new Date()
+      if (now - lastResend < 2 * 60 * 1000) {
+        return res.status(429).json({ message: 'Du musst 2 Minuten warten, bevor du erneut eine SMS anfordern kannst.' })
+      }
+    }
+
+    const smsCode = Math.floor(100000 + Math.random() * 900000).toString()
+    const smsExpire = new Date(Date.now() + 15 * 60 * 1000)
+    const now = new Date()
+
+    // SMS schicken
+    await sendSMS(phone, `HGDEVS Code: ${smsCode}`)
+
+    // SMS-Code im User speichern
+    await db.pool.query(
+      'UPDATE users SET SMS_token = ?, SMS_token_expire = ? WHERE id = ?',
+      [smsCode, smsExpire, userId]
+    )
+
+    // sms_limits aktualisieren
+    if (limits.length) {
+      await db.pool.query(
+        'UPDATE sms_limits SET sms_last_sent = ?, sms_resend_count = sms_resend_count + 1 WHERE phone = ?',
+        [now, phone]
+      )
+    } else {
+      await db.pool.query(
+        'INSERT INTO sms_limits (phone, sms_last_sent, sms_daily_count, sms_resend_count) VALUES (?, ?, 0, 1)',
+        [phone, now]
+      )
+    }
+
+    res.json({ success: true, message: 'SMS erneut versendet.' })
+  } catch (err) {
+    console.error('[forgot/resend-sms] Fehler:', err)
+    res.status(500).json({ message: 'Fehler beim erneuten Senden der SMS.' })
+  }
+})
+
+async function generateUniqueResetToken() {
+  const token = crypto.randomBytes(32).toString('hex')
+  const expires = new Date(Date.now() + 15 * 60 * 1000)
+  return { token, expires }
+}
 
 module.exports = router;

@@ -12,11 +12,12 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
   const [identifier, setIdentifier] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [repeat, setRepeat] = useState('')
   const [phone, setPhone] = useState('')
   const [smsCode, setSmsCode] = useState('')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token')
@@ -36,12 +37,16 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
       .catch(() => setShowPopup(true))
   }, [forceShow])
 
+  // ----- Auth Actions -----
+
   const handleSubmit = async () => {
     setError('')
     setInfo('')
+    setLoading(true)
 
-    if ((tab === 'register' && (!identifier || !username || !phone))) {
+    if (tab === 'register' && (!identifier || !username || !phone)) {
       setError('Bitte fülle alle Felder korrekt aus.')
+      setLoading(false)
       return
     }
 
@@ -59,27 +64,34 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
       const data = await res.json()
       if (!res.ok) {
         setError(data.message || 'Fehler beim Authentifizieren.')
+        setLoading(false)
         return
       }
 
       if (tab === 'register') {
         setPhone(data.phone || phone)
         setStep('verify')
+        setInfo('Ein SMS-Code wurde an dein Handy gesendet.')
+        setLoading(false)
         return
       }
 
       if (data.token) {
         localStorage.setItem('auth_token', data.token)
         setShowPopup(false)
+        setLoading(false)
         forceRedirectTo ? router.push(forceRedirectTo) : router.refresh()
       }
     } catch {
       setError('Serverfehler. Bitte später erneut versuchen.')
+      setLoading(false)
     }
   }
 
   const handleVerify = async () => {
     setError('')
+    setInfo('')
+    setLoading(true)
     try {
       const res = await fetch(`http://10.1.0.122:3001/api/auth/verify`, {
         method: 'POST',
@@ -90,11 +102,13 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
 
       if (!res.ok || !data.token) {
         setError(data.message || 'Code ungültig oder abgelaufen.')
+        setLoading(false)
         return
       }
 
       setStep('done')
       setInfo('Deine Nummer wurde bestätigt. Eine E-Mail mit einem Link zum Passwortsetzen wurde gesendet. Du wirst gleich weitergeleitet…')
+      setLoading(false)
 
       setTimeout(() => {
         setShowPopup(false)
@@ -102,15 +116,18 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
       }, 10000)
     } catch {
       setError('Fehler bei der Verifizierung.')
+      setLoading(false)
     }
   }
 
   const handleForgotSubmit = async () => {
     setError('')
     setInfo('')
+    setLoading(true)
 
     if (!identifier) {
       setError('Bitte gib deinen Benutzernamen oder deine E-Mail an.')
+      setLoading(false)
       return
     }
 
@@ -124,18 +141,24 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
       const data = await res.json()
       if (!res.ok) {
         setError(data.message || 'Nutzer nicht gefunden.')
+        setLoading(false)
         return
       }
 
       setPhone(data.phone)
       setStep('verify')
+      setInfo('Ein SMS-Code wurde an dein Handy gesendet.')
+      setLoading(false)
     } catch {
       setError('Serverfehler beim Senden des Codes.')
+      setLoading(false)
     }
   }
 
   const handleForgotVerify = async () => {
     setError('')
+    setInfo('')
+    setLoading(true)
     try {
       const res = await fetch(`http://10.1.0.122:3001/api/auth/forgot-verify`, {
         method: 'POST',
@@ -146,26 +169,73 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
       const data = await res.json()
       if (!res.ok) {
         setError(data.message || 'Code ungültig.')
+        setLoading(false)
         return
       }
 
       setStep('done')
       setInfo('Ein Link zum Zurücksetzen deines Passworts wurde an deine E-Mail gesendet. Du wirst gleich zur Login-Seite weitergeleitet…')
+      setLoading(false)
 
       setTimeout(() => {
         setShowPopup(false)
         router.push('/login')
       }, 10000)
-
     } catch {
       setError('Fehler bei der Verifizierung.')
+      setLoading(false)
     }
   }
 
+  // ----- Resend SMS -----
+  const handleResendCode = async () => {
+    setError('')
+    setInfo('')
+    setResendLoading(true)
+    let url = ''
+    let body: any = {}
+    if (tab === 'register') {
+      url = `http://10.1.0.122:3001/api/auth/register/resend-sms`
+      body = { phone }
+    } else if (tab === 'forgot') {
+      url = `http://10.1.0.122:3001/api/auth/forgot-resend-sms`
+      body = { phone }
+    } else {
+      setResendLoading(false)
+      return
+    }
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.message || 'SMS konnte nicht erneut gesendet werden.')
+        setResendLoading(false)
+        return
+      }
+      setInfo('SMS erneut gesendet.')
+      setResendLoading(false)
+    } catch {
+      setError('Fehler beim erneuten Senden der SMS.')
+      setResendLoading(false)
+    }
+  }
+
+  // ----- UI Rendering -----
+
   const renderForm = () => {
-    if (tab === 'forgot') {
-      if (step === 'form') {
-        return (
+    // Error/info für ALLE Schritte
+    return (
+      <>
+        {(error || info) && (
+          <div className={`px-4 py-2 rounded text-sm text-center mb-2 ${error ? 'bg-red-800 text-red-200' : 'bg-green-800 text-green-200'}`}>
+            {error || info}
+          </div>
+        )}
+        {tab === 'forgot' && step === 'form' && (
           <>
             <input
               type="text"
@@ -177,59 +247,80 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
             <button
               onClick={handleForgotSubmit}
               className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 rounded mt-2"
+              disabled={loading}
             >
-              Code anfordern
+              {loading ? 'Sende...' : 'Code anfordern'}
             </button>
           </>
-        )
-      } else if (step === 'verify') {
-        return (
+        )}
+        {tab === 'forgot' && step === 'verify' && (
           <>
             <p className="text-sm">Ein SMS-Code wurde an <strong>{phone}</strong> gesendet.</p>
-            <input
-              type="text"
-              value={smsCode}
-              onChange={e => setSmsCode(e.target.value)}
-              placeholder="SMS-Code eingeben"
-              className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
-            />
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={smsCode}
+                onChange={e => setSmsCode(e.target.value)}
+                placeholder="SMS-Code eingeben"
+                className="flex-1 px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
+              />
+              <button
+                onClick={handleResendCode}
+                className="bg-gray-700 hover:bg-yellow-600 text-white px-3 rounded"
+                disabled={resendLoading}
+                type="button"
+              >
+                {resendLoading ? '...' : 'SMS erneut senden'}
+              </button>
+            </div>
             <button
               onClick={handleForgotVerify}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-2"
+              disabled={loading}
             >
-              Code bestätigen
+              {loading ? 'Prüfe...' : 'Code bestätigen'}
             </button>
           </>
-        )
-      } else {
-        return <p className="text-green-500 text-sm">{info}</p>
-      }
-    }
+        )}
+        {tab === 'forgot' && step === 'done' && (
+          <p className="text-green-500 text-sm">{info}</p>
+        )}
 
-    if (step === 'verify') {
-      return (
-        <>
-          <p className="text-sm">Ein SMS-Code wurde an <strong>{phone}</strong> gesendet.</p>
-          <input
-            type="text"
-            value={smsCode}
-            onChange={e => setSmsCode(e.target.value)}
-            placeholder="SMS-Code eingeben"
-            className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
-          />
-          <button
-            onClick={handleVerify}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded"
-          >
-            Code bestätigen
-          </button>
-        </>
-      )
-    }
+        {tab !== 'forgot' && step === 'verify' && (
+          <>
+            <p className="text-sm">Ein SMS-Code wurde an <strong>{phone}</strong> gesendet.</p>
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={smsCode}
+                onChange={e => setSmsCode(e.target.value)}
+                placeholder="SMS-Code eingeben"
+                className="flex-1 px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
+              />
+              <button
+                onClick={handleResendCode}
+                className="bg-gray-700 hover:bg-yellow-600 text-white px-3 rounded"
+                disabled={resendLoading}
+                type="button"
+              >
+                {resendLoading ? '...' : 'SMS erneut senden'}
+              </button>
+            </div>
+            <button
+              onClick={handleVerify}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-2"
+              disabled={loading}
+            >
+              {loading ? 'Prüfe...' : 'Code bestätigen'}
+            </button>
+          </>
+        )}
 
-    return (
-      <>
-        {tab === 'register' && (
+        {tab !== 'forgot' && step === 'done' && (
+          <p className="text-green-500 text-sm">{info}</p>
+        )}
+
+        {step === 'form' && tab === 'register' && (
           <>
             <input
               type="text"
@@ -252,20 +343,25 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
               placeholder="Handynummer (z. B. +491701234567)"
               className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
             />
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Passwort"
+              className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
+            />
+            <button
+              onClick={handleSubmit}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded mt-2"
+              disabled={loading}
+            >
+              {loading ? 'Sende...' : 'Konto erstellen'}
+            </button>
           </>
         )}
-        {tab === 'login' && (
+
+        {step === 'form' && tab === 'login' && (
           <>
-            {error && (
-              <div className="bg-red-800 text-red-200 px-4 py-2 rounded text-sm text-center mb-2">
-                {error}
-              </div>
-            )}
-            {info && (
-              <div className="bg-green-800 text-green-200 px-4 py-2 rounded text-sm text-center mb-2">
-                {info}
-              </div>
-            )}
             <input
               type="text"
               value={identifier}
@@ -280,26 +376,25 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
               placeholder="Passwort"
               className="w-full px-4 py-2 rounded bg-gray-800 border border-gray-700 focus:outline-none"
             />
+            <button
+              onClick={handleSubmit}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded mt-2"
+              disabled={loading}
+            >
+              {loading ? 'Einloggen...' : 'Einloggen'}
+            </button>
+            <button
+              className="text-sm text-blue-400 hover:underline mt-2"
+              onClick={() => {
+                setTab('forgot')
+                setStep('form')
+                setError('')
+                setInfo('')
+              }}
+            >
+              Passwort vergessen?
+            </button>
           </>
-        )}
-        <button
-          onClick={handleSubmit}
-          className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded"
-        >
-          {tab === 'login' ? 'Einloggen' : 'Konto erstellen'}
-        </button>
-        {tab === 'login' && (
-          <button
-            className="text-sm text-blue-400 hover:underline mt-2"
-            onClick={() => {
-              setTab('forgot')
-              setStep('form')
-              setError('')
-              setInfo('')
-            }}
-          >
-            Passwort vergessen?
-          </button>
         )}
       </>
     )
@@ -317,7 +412,6 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
               ? 'SMS-Code bestätigen'
               : tab === 'login' ? 'Einloggen' : 'Registrieren'}
         </h2>
-
         <div className="flex justify-center gap-4 mb-2">
           {['login', 'register'].map(t => (
             <button
@@ -327,15 +421,14 @@ export default function LoginCheckPopup({ forceShow = false, forceRedirectTo }: 
                 setTab(t as 'login' | 'register')
                 setStep('form')
                 setError('')
+                setInfo('')
               }}
             >
               {t === 'login' ? 'Login' : 'Registrieren'}
             </button>
           ))}
         </div>
-
         {renderForm()}
-
       </div>
     </div>
   )

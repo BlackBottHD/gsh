@@ -3,12 +3,13 @@
 import { useRouter, useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { usePermissions } from '@/lib/usePermissions'
+import { usePermissionGuard } from '@/lib/usePermissionGuard'
 
 type Todoo = {
   id: number
   title: string
   description: string
-  status: 'entwurf' | 'geplant' | 'arbeit' | 'fertig'
+  status: 'entwurf' | 'geplant' | 'arbeit' | 'fertig' | 'abgelehnt'
   date: string
 }
 
@@ -17,9 +18,11 @@ const statusLabels = {
   geplant: 'Geplant',
   arbeit: 'In Arbeit',
   fertig: 'Abgeschlossen',
+  abgelehnt: 'Abgelehnt',
 }
 
 export default function TodoEditPage() {
+  usePermissionGuard('admin.todo.edit')
   const router = useRouter()
   const params = useParams()
   const { hasPermission, isReady } = usePermissions()
